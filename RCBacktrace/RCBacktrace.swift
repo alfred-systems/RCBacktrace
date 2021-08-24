@@ -51,7 +51,7 @@ public func backtrace(_ thread: thread_t, stack: UnsafeMutablePointer<UnsafeMuta
 extension RCBacktrace {
 
     static func machThread(from thread: Thread) -> thread_t {
-        var name: [Int8] = [Int8]()
+        var name: [Int8] = [Int8](repeating: 0x00, count: MemoryLayout<Int8>.size * 256)
         var count: mach_msg_type_number_t = 0
         var threads: thread_act_array_t!
 
@@ -69,10 +69,12 @@ extension RCBacktrace {
             let index = Int(i)
             if let p_thread = pthread_from_mach_thread_np((threads[index])) {
                 name.append(Int8(Character.init("\0").ascii!))
-                pthread_getname_np(p_thread, &name, MemoryLayout<Int8>.size * 256)
-                if (strcmp(&name, (thread.name!.ascii)) == 0) {
-                    thread.name = originName
-                    return threads[index]
+                if (pthread_getname_np(p_thread, &name, MemoryLayout<Int8>.size * 256) == 0) {
+                    let asciiStr = (thread.name!.ascii)
+                    if (strncmp(&name, asciiStr, asciiStr.count) == 0) {
+                        thread.name = originName
+                        return threads[index]
+                    }
                 }
             }
         }
